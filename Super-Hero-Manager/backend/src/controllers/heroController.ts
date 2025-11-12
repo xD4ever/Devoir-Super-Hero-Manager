@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { logger } from '../utils/logger.js';
 import Hero from '../models/Hero.js';
 
-export const getAllHeroes = async (req: Request, res: Response) => {
+export const getAllHeroes = async (res: Response) => {
     try {
         const heroes = await Hero.find();
         logger.info(`Retrieved ${heroes.length} heroes`);
