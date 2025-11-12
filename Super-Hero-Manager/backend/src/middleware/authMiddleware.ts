@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
 
-export const protectRoute = async (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
     try {
 
         const token = req.cookies?.jwt;
@@ -32,8 +32,8 @@ export const protectRoute = async (req: Request, res: Response, next: NextFuncti
         return next();
 
     }catch (error :any) {
-        console.log("Error in protectRoute middleware: ", error.message)
-        logger.error("Error in protectRoute middleware: ", error.message);
+        console.log("Error in authenticate middleware: ", error.message)
+        logger.error("Error in authenticate middleware: ", error.message);
         return res.status(500).json({ message: 'Internal server error' });
     }
 }
