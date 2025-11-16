@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { logger } from '../utils/logger.js';
 import Hero from '../models/Hero.js';
 
-export const getAllHeroes = async (res: Response) => {
+export const getAllHeroes = async (_req: Request, res: Response) => {
     try {
         const heroes = await Hero.find();
         logger.info(`Retrieved ${heroes.length} heroes`);
@@ -33,15 +33,23 @@ export const getHeroById = async (req: Request, res: Response) => {
 
 export const createHero = async (req: Request, res: Response) => {
     try {
-        const { nom, alias, univers, pouvoirs, description, image, origine, premiereApparition } = req.body;
+        const { nom, alias, univers, pouvoirs, description, origine, premiereApparition } = req.body;
+        
+        // Handle uploaded image
+        let imageUrl = req.body.image; // Default to URL from body if provided
+        if (req.file) {
+            // If file was uploaded, use the uploaded file path
+            imageUrl = `/uploads/${req.file.filename}`;
+            logger.info(`Image uploaded: ${req.file.filename}`);
+        }
         
         const newHero = new Hero({
             nom,
             alias,
             univers,
-            pouvoirs,
+            pouvoirs: Array.isArray(pouvoirs) ? pouvoirs : JSON.parse(pouvoirs || '[]'),
             description,
-            image,
+            image: imageUrl,
             origine,
             premiereApparition
         });
@@ -58,7 +66,18 @@ export const createHero = async (req: Request, res: Response) => {
 export const updateHero = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const updateData = req.body;
+        const updateData = { ...req.body };
+        
+        // Handle uploaded image
+        if (req.file) {
+            updateData.image = `/uploads/${req.file.filename}`;
+            logger.info(`Image uploaded for update: ${req.file.filename}`);
+        }
+        
+        // Handle pouvoirs if it's a string
+        if (updateData.pouvoirs && typeof updateData.pouvoirs === 'string') {
+            updateData.pouvoirs = JSON.parse(updateData.pouvoirs);
+        }
         
         const updatedHero = await Hero.findByIdAndUpdate(
             id,

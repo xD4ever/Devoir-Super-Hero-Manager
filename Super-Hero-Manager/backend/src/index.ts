@@ -1,8 +1,9 @@
 //Import from packages
 import express from 'express';
 import dotenv from 'dotenv';
-//import cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import cors from "cors";
+import path from 'path';
 
 //Import from files
 import authRoutes from './routes/authRoutes.js';
@@ -19,13 +20,16 @@ const PORT = process.env.PORT;
 const IP = process.env.IP;
 
 app.use(express.json());
-//app.use(cookieParser());
+app.use(cookieParser());
 app.use(cors(
   {
   origin: "http://localhost:5173",
   credentials: true,
   }
 ))
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(process.cwd(), 'src', 'uploads')));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/hero", heroRoutes);

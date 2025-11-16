@@ -75,9 +75,9 @@ export const login = async (req: Request, res: Response) => {
     }
 }
 
-export const logout = async (res: Response) => {
+export const logout = async (_req: Request, res: Response) => {
     try {
-        res.clearCookie('token');
+        res.clearCookie('jwt');
         logger.info('User logged out successfully');
         return res.status(200).json({message: 'Logout successful'});
     } catch (error) {

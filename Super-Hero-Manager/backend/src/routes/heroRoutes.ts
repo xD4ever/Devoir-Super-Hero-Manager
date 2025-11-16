@@ -7,7 +7,7 @@ import { upload } from '../middleware/uploadMiddleware.js';
 const router = Router();
 
 // Public routes
-router.get('/', getAllHeroes);
+router.get('/', (req, res) => getAllHeroes(req, res));
 router.get('/:id', getHeroById);
 
 // Protected routes - require authentication
