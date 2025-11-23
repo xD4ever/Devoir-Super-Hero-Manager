@@ -1,34 +1,48 @@
 import axios from 'axios';
 import { Hero } from '../types/Hero';
+import { resolveApiUrl } from '../config';
 
-const API_URL = '/api/heroes';
+const API_URL = resolveApiUrl('/api/hero');
 
-const getAuthHeaders = () => {
+const authHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const getHeroes = async () => {
-  const response = await axios.get(API_URL, { headers: getAuthHeaders() });
-  return response.data;
+export const getHeroes = async (): Promise<Hero[]> => {
+  const res = await axios.get<Hero[]>(API_URL);
+  return res.data;
 };
 
-export const getHeroById = async (id: string) => {
-  const response = await axios.get(`${API_URL}/${id}`, { headers: getAuthHeaders() });
-  return response.data;
+export const getHeroById = async (id: string): Promise<Hero> => {
+  const res = await axios.get<Hero>(`${API_URL}/${id}`);
+  return res.data;
 };
 
-export const createHero = async (hero: Omit<Hero, '_id'>) => {
-  const response = await axios.post(API_URL, hero, { headers: getAuthHeaders() });
-  return response.data;
+export const createHero = async (formData: FormData): Promise<Hero> => {
+  const res = await axios.post<Hero>(API_URL, formData, {
+    headers: {
+      ...authHeaders(),
+      // let Axios set proper multipart boundary; do not set Content-Type manually
+    },
+  });
+  return res.data;
 };
 
-export const updateHero = async (id: string, hero: Partial<Hero>) => {
-  const response = await axios.put(`${API_URL}/${id}`, hero, { headers: getAuthHeaders() });
-  return response.data;
+export const updateHero = async (
+  id: string,
+  formData: FormData,
+): Promise<Hero> => {
+  const res = await axios.put<Hero>(`${API_URL}/${id}`, formData, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  return res.data;
 };
 
-export const deleteHero = async (id: string) => {
-  const response = await axios.delete(`${API_URL}/${id}`, { headers: getAuthHeaders() });
-  return response.data;
+export const deleteHero = async (id: string): Promise<void> => {
+  await axios.delete(`${API_URL}/${id}`, {
+    headers: authHeaders(),
+  });
 };

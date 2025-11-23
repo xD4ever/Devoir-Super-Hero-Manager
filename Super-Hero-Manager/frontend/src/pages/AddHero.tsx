@@ -1,21 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import { createHero } from '../api/heroApi';
 import HeroForm from '../components/HeroForm';
-import { Hero } from '../types/Hero';
+import { createHero } from '../api/heroApi';
 
 const AddHero = () => {
   const navigate = useNavigate();
 
-  const handleSubmit = async (hero: Omit<Hero, '_id'>) => {
-    await createHero(hero);
+  const handleSubmit = async (formData: FormData) => {
+    await createHero(formData);
     navigate('/');
   };
 
   return (
-    <div>
-      <h1>Add New Hero</h1>
-      <HeroForm onSubmit={handleSubmit} />
-    </div>
+    <main className="page">
+      <header className="page-header">
+        <h1>Ajouter un héros</h1>
+      </header>
+      <section className="card">
+        <HeroForm onSubmit={handleSubmit} submitLabel="Créer" />
+      </section>
+    </main>
   );
 };
 

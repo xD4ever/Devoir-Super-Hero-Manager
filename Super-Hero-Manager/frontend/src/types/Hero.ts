@@ -5,7 +5,8 @@ export interface Hero {
   univers: 'Marvel' | 'DC' | 'Autre';
   pouvoirs: string[];
   description?: string;
-  image?: string;
   origine?: string;
-  premiereApparition?: Date;
+  premiereApparition?: string;
+  image?: string;
+  createdAt?: string;
 }

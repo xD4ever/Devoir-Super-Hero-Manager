@@ -1,35 +1,66 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { login as loginApi } from '../api/authApi';
+import { FormEvent, useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { login as loginRequest } from '../api/authApi';
 import useAuth from '../hooks/useAuth';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, isAuthenticated, refreshUser } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
     try {
-      const data = await loginApi({ email, password });
-      login(data.token);
+      const { token } = await loginRequest({ username, password });
+      login(token);
+      await refreshUser();
       navigate('/');
-    } catch (err) {
-      setError('Invalid credentials');
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          'Erreur lors de la connexion. Vérifiez vos identifiants.',
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
-        <button type="submit">Login</button>
+    <main className="page page--centered">
+      <form className="card auth-form" onSubmit={handleSubmit}>
+        <h1>Connexion</h1>
+        <label>
+          Nom d&apos;utilisateur
+          <input
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <label>
+          Mot de passe
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+        </label>
+        {error && <div className="error">{error}</div>}
+        <button className="btn primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Connexion…' : 'Se connecter'}
+        </button>
       </form>
-      {error && <p>{error}</p>}
-    </div>
+    </main>
   );
 };
 

@@ -1,7 +1,6 @@
 import { Navigate } from 'react-router-dom';
-import useAuth from '../hooks/useAuth';
-import { jwtDecode } from 'jwt-decode';
 import { ReactNode } from 'react';
+import useAuth from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,20 +8,21 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) => {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, user, isAuthLoading } = useAuth();
+
+  if (isAuthLoading) {
+    return <div className="page-state">Chargement...</div>;
+  }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly) {
-    const decodedToken: { role: string } = jwtDecode(token!);
-    if (decodedToken.role !== 'admin') {
-      return <Navigate to="/" />;
-    }
+  if (adminOnly && user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

@@ -1,40 +1,63 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getHeroById, updateHero } from '../api/heroApi';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import HeroForm from '../components/HeroForm';
+import { getHeroById, updateHero } from '../api/heroApi';
 import { Hero } from '../types/Hero';
 
 const EditHero = () => {
   const { id } = useParams<{ id: string }>();
-  const [initialHero, setInitialHero] = useState<Hero | undefined>(undefined);
   const navigate = useNavigate();
+  const [hero, setHero] = useState<Hero | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      const fetchHero = async () => {
+    const load = async () => {
+      if (!id) return;
+      setIsLoading(true);
+      try {
         const data = await getHeroById(id);
-        setInitialHero(data);
-      };
-      fetchHero();
-    }
+        setHero(data);
+      } catch (e: any) {
+        setError(
+          e?.response?.data?.message || 'Erreur lors du chargement du héros',
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, [id]);
 
-  const handleSubmit = async (hero: Omit<Hero, '_id'>) => {
-    if (id) {
-      await updateHero(id, hero);
-      navigate(`/hero/${id}`);
-    }
+  const handleSubmit = async (formData: FormData) => {
+    if (!id) return;
+    await updateHero(id, formData);
+    navigate(`/hero/${id}`);
   };
 
+  if (isLoading) {
+    return <div className="page-state">Chargement du héros…</div>;
+  }
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+  if (!hero) {
+    return <div className="page-state">Héros introuvable.</div>;
+  }
+
   return (
-    <div>
-      <h1>Edit Hero</h1>
-      {initialHero ? (
-        <HeroForm onSubmit={handleSubmit} initialHero={initialHero} />
-      ) : (
-        <p>Loading...</p>
-      )}
-    </div>
+    <main className="page">
+      <header className="page-header">
+        <h1>Modifier le héros</h1>
+      </header>
+      <section className="card">
+        <HeroForm
+          onSubmit={handleSubmit}
+          initialHero={hero}
+          submitLabel="Mettre à jour"
+        />
+      </section>
+    </main>
   );
 };
 
