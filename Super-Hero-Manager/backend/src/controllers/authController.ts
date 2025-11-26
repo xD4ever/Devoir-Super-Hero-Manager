@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { generateToken } from '../utils/tokkenGeneration';
-import User from '../models/User';
+import { generateToken } from '../utils/tokkenGeneration.js';
+import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 
@@ -50,10 +50,12 @@ export const signup = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
     const {username, password} = req.body;
+    console.log(`Login attempt for user: ${username}`); // Debug log
     try {
         //verifier si l'utilisateur existe
         const user = await User.findOne({username});
         if (!user) {
+            console.log(`User ${username} not found`); // Debug log
             logger.warn(`Login failed: User ${username} not found`);
             return res.status(400).json({message: 'Invalid credentials'});
         }
@@ -61,15 +63,18 @@ export const login = async (req: Request, res: Response) => {
         //comparer le mot de passe
         const isMatch = await bcrypt.compare(password, user.passwordHashed);
         if (!isMatch) {
+            console.log(`Invalid password for user ${username}`); // Debug log
             logger.warn(`Login failed: Invalid password for user ${username}`);
             return res.status(400).json({message: 'Invalid credentials'});
         }
 
         //generate token
         const token = generateToken(user._id, res);
+        console.log(`User ${username} logged in successfully, token generated`); // Debug log
         logger.info(`User ${username} logged in successfully`);
         return res.status(200).json({message: 'Login successful', token});
     }catch(error) {
+        console.error('Login error:', error); // Debug log
         logger.error('Login error:', error);
         return res.status(500).json({message: 'Server error', error});
     }
@@ -125,15 +130,23 @@ export const updateProfile = async (req: Request, res: Response) => {
 
 export const checkAuth = async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
-      if (!user || !user._id) {
-        logger.warn('CheckAuth failed: Unauthorized access');
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-      logger.info(`Auth check successful for user ${user.username || user._id}`);
-      return res.status(200).json({ message: 'Authorized', user });
-    } catch (error: any) {
-      logger.error("Error in checkAuth:", error?.message || error);
-      return res.status(500).json({ message: "Internal server error" });
+        const user = (req as any).user;
+        if (!user) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+        return res.status(200).json(user);
+    } catch (error) {
+        logger.error('Check auth error:', error);
+        return res.status(500).json({ message: 'Server error' });
     }
-}
+};
+
+export const getAllUsers = async (_req: Request, res: Response) => {
+    try {
+        const users = await User.find({}).select('-passwordHashed');
+        return res.status(200).json(users);
+    } catch (error) {
+        logger.error('Get all users error:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
+};
