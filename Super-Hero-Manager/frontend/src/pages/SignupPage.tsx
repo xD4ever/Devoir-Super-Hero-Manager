@@ -2,16 +2,19 @@ import React from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { TextField, Button, Container, Typography, Box, Alert, Link } from '@mui/material';
-import { useAuth } from '../hooks/useAuth';
+import { signup } from '../api/authApi';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 
 const validationSchema = Yup.object({
     username: Yup.string().required('Username is required'),
-    password: Yup.string().required('Password is required'),
+    password: Yup.string()
+        .required('Password is required')
+        .min(8, 'Password must be at least 8 characters')
+        .matches(/\d/, 'Password must contain a number')
+        .matches(/[a-zA-Z]/, 'Password must contain a letter'),
 });
 
-const LoginPage: React.FC = () => {
-    const { login } = useAuth();
+const SignupPage: React.FC = () => {
     const navigate = useNavigate();
     const [error, setError] = React.useState<string | null>(null);
 
@@ -23,10 +26,16 @@ const LoginPage: React.FC = () => {
         validationSchema: validationSchema,
         onSubmit: async (values) => {
             try {
-                await login(values);
-                navigate('/');
+                await signup(values);
+                // Auto login or redirect to login page?
+                // Let's redirect to login for simplicity, or we could try to log them in automatically.
+                // The signup response returns a token: { message: 'User created successfully', token }
+                // But the useAuth hook might expect to handle the login state.
+                // For now, let's redirect to login with a success message or just log them in.
+                // Since useAuth exposes login, let's just redirect to login page so they can sign in.
+                navigate('/login');
             } catch (err: any) {
-                setError(err.response?.data?.message || 'Login failed');
+                setError(err.response?.data?.message || 'Signup failed');
             }
         },
     });
@@ -35,7 +44,7 @@ const LoginPage: React.FC = () => {
         <Container maxWidth="sm">
             <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Typography component="h1" variant="h5">
-                    Sign in
+                    Sign up
                 </Typography>
                 {error && <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>}
                 <Box component="form" onSubmit={formik.handleSubmit} sx={{ mt: 1, width: '100%' }}>
@@ -59,7 +68,7 @@ const LoginPage: React.FC = () => {
                         label="Password"
                         type="password"
                         id="password"
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         value={formik.values.password}
                         onChange={formik.handleChange}
                         error={formik.touched.password && Boolean(formik.errors.password)}
@@ -71,11 +80,11 @@ const LoginPage: React.FC = () => {
                         variant="contained"
                         sx={{ mt: 3, mb: 2 }}
                     >
-                        Sign In
+                        Sign Up
                     </Button>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <Link component={RouterLink} to="/signup" variant="body2">
-                            Don't have an account? Sign Up
+                        <Link component={RouterLink} to="/login" variant="body2">
+                            Already have an account? Sign in
                         </Link>
                     </Box>
                 </Box>
@@ -84,4 +93,4 @@ const LoginPage: React.FC = () => {
     );
 };
 
-export default LoginPage;
+export default SignupPage;

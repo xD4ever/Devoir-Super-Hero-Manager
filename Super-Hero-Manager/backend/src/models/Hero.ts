@@ -34,6 +34,6 @@ const heroSchema = new mongoose.Schema(
     }
 );
 
-const Hero = mongoose.model("Hero", heroSchema);
+const Hero = mongoose.model("Hero", heroSchema, "heros");
 
 export default Hero;

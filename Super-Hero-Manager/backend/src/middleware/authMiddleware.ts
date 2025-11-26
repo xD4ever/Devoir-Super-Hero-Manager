@@ -43,6 +43,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }catch (error :any) {
         console.log("Error in authenticate middleware: ", error.message)
         logger.error("Error in authenticate middleware: ", error.message);
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Unauthorized - Invalid Token' });
+        }
         return res.status(500).json({ message: 'Internal server error' });
     }
 }

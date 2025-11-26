@@ -1,9 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 import Hero from '../models/Hero.js';
 import { logger } from './logger.js';
 import { connectDB } from '../config/db.js';
+
+dotenv.config();
 
 interface SuperHeroData {
     id: number;
@@ -51,20 +54,40 @@ interface SuperHeroData {
 }
 
 const seedDatabase = async () => {
+    console.log('Starting seed/migration script...');
     try {
         // Connect to database
         await connectDB();
         
-        const filePath = path.join(process.cwd(), 'src', 'uploads', 'SuperHerosComplet.json');
-        const data = fs.readFileSync(filePath, 'utf-8');
-        const jsonData = JSON.parse(data);
-        const superHeroes: SuperHeroData[] = jsonData.superheros || [];
+        let superHeroes: SuperHeroData[] = [];
+        let badDocId: any = null;
+        let sourceCollectionName: string | null = null;
 
-        logger.info(`Found ${superHeroes.length} heroes to seed`);
+        if (mongoose.connection.db) {
+            const col = mongoose.connection.db.collection('heros');
+            const allDocs = await col.find({}).toArray();
+            
+            // Find the bad document in memory
+            const doc = allDocs.find((d: any) => d.superheros && Array.isArray(d.superheros));
+            
+            if (doc) {
+                badDocId = doc._id;
+                superHeroes = doc.superheros;
+                sourceCollectionName = 'heros';
+            }
+        }
 
-        // Clear existing heroes (optional)
-        // await Hero.deleteMany({});
-        // logger.info('Cleared existing heroes');
+        if (badDocId) {
+            logger.info(`Found malformed document in '${sourceCollectionName}' with ${superHeroes.length} heroes. Migrating...`);
+        } else {
+            const filePath = path.join(process.cwd(), 'src', 'uploads', 'SuperHerosComplet.json');
+            if (fs.existsSync(filePath)) {
+                const data = fs.readFileSync(filePath, 'utf-8');
+                const jsonData = JSON.parse(data);
+                superHeroes = jsonData.superheros || [];
+                logger.info(`Found ${superHeroes.length} heroes in file to seed`);
+            }
+        }
 
         let successCount = 0;
         let errorCount = 0;
@@ -98,6 +121,11 @@ const seedDatabase = async () => {
                 errorCount++;
                 logger.error(`Error seeding hero ${heroData.name}:`, error);
             }
+        }
+
+        if (badDocId && sourceCollectionName && mongoose.connection.db) {
+            await mongoose.connection.db.collection(sourceCollectionName).deleteOne({ _id: badDocId });
+            logger.info('Deleted malformed document');
         }
 
         logger.info(`Database seeded successfully. Success: ${successCount}, Errors: ${errorCount}`);

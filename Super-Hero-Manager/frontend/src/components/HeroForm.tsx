@@ -1,207 +1,195 @@
-import { useEffect, useMemo, useState, FocusEvent } from 'react';
-import { Formik, Form, Field, ErrorMessage, FormikHelpers } from 'formik';
+import React, { useState } from 'react';
+import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { Hero } from '../types/Hero';
+import { TextField, Button, Box, MenuItem, Typography, Chip, Stack } from '@mui/material';
+import { CreateHeroData, Hero } from '../types/Hero';
 
 interface HeroFormProps {
-  onSubmit: (formData: FormData) => Promise<void>;
-  initialHero?: Hero;
-  submitLabel?: string;
+    initialValues?: Hero;
+    onSubmit: (values: CreateHeroData) => Promise<void>;
+    submitLabel: string;
 }
 
-interface HeroFormValues {
-  nom: string;
-  alias: string;
-  univers: Hero['univers'];
-  pouvoirs: string;
-  description: string;
-  origine: string;
-  premiereApparition: string;
-  image: File | null;
-}
-
-const heroSchema = Yup.object().shape({
-  nom: Yup.string().required('Nom requis'),
-  alias: Yup.string().required('Alias requis'),
-  univers: Yup.mixed<Hero['univers']>()
-    .oneOf(['Marvel', 'DC', 'Autre'])
-    .required('Univers requis'),
-  pouvoirs: Yup.string().required('Les pouvoirs sont requis'),
-  description: Yup.string().max(1000, 'Description trop longue'),
-  origine: Yup.string().max(255, 'Origine trop longue'),
-  premiereApparition: Yup.string().nullable(),
+const validationSchema = Yup.object({
+    nom: Yup.string().required('Name is required'),
+    alias: Yup.string().required('Alias is required'),
+    univers: Yup.string().oneOf(['Marvel', 'DC', 'Autre']).required('Univers is required'),
+    pouvoirs: Yup.array().of(Yup.string()).min(1, 'At least one power is required'),
+    description: Yup.string(),
+    origine: Yup.string(),
+    premiereApparition: Yup.date().nullable(),
 });
 
-const HeroForm = ({ onSubmit, initialHero, submitLabel }: HeroFormProps) => {
-  const [preview, setPreview] = useState<string | null>(null);
+const HeroForm: React.FC<HeroFormProps> = ({ initialValues, onSubmit, submitLabel }) => {
+    const [imagePreview, setImagePreview] = useState<string | null>(() => {
+        if (!initialValues?.image) return null;
+        if (initialValues.image.startsWith('http')) return initialValues.image;
+        
+        let cleanPath = initialValues.image.startsWith('/') ? initialValues.image.substring(1) : initialValues.image;
+        if (cleanPath.match(/^(md|sm|xs|lg)\//)) {
+            cleanPath = `uploads/images/${cleanPath}`;
+        } else if (!cleanPath.startsWith('uploads/')) {
+            cleanPath = `uploads/${cleanPath}`;
+        }
+        return `http://localhost:5001/${cleanPath.replace(/\\/g, '/')}`;
+    });
+    const [powerInput, setPowerInput] = useState('');
 
-  const initialValues: HeroFormValues = useMemo(
-    () => ({
-      nom: initialHero?.nom ?? '',
-      alias: initialHero?.alias ?? '',
-      univers: initialHero?.univers ?? 'Autre',
-      pouvoirs: initialHero?.pouvoirs?.join(', ') ?? '',
-      description: initialHero?.description ?? '',
-      origine: initialHero?.origine ?? '',
-      premiereApparition: initialHero?.premiereApparition
-        ? new Date(initialHero.premiereApparition).toISOString().slice(0, 10)
-        : '',
-      image: null,
-    }),
-    [initialHero],
-  );
+    const formik = useFormik({
+        initialValues: {
+            nom: initialValues?.nom || '',
+            alias: initialValues?.alias || '',
+            univers: initialValues?.univers || 'Marvel',
+            pouvoirs: initialValues?.pouvoirs || [],
+            description: initialValues?.description || '',
+            origine: initialValues?.origine || '',
+            premiereApparition: initialValues?.premiereApparition ? new Date(initialValues.premiereApparition).toISOString().split('T')[0] : '',
+            image: null,
+        },
+        validationSchema: validationSchema,
+        onSubmit: async (values) => {
+            await onSubmit(values as unknown as CreateHeroData);
+        },
+    });
 
-  useEffect(() => {
-    if (initialHero?.image) {
-      setPreview(initialHero.image);
-    }
-  }, [initialHero]);
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            formik.setFieldValue('image', file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
 
-  const handleSubmit = async (
-    values: HeroFormValues,
-    helpers: FormikHelpers<HeroFormValues>,
-  ) => {
-    const formData = new FormData();
-    formData.append('nom', values.nom);
-    formData.append('alias', values.alias);
-    formData.append('univers', values.univers);
-    formData.append(
-      'pouvoirs',
-      JSON.stringify(
-        values.pouvoirs
-          .split(',')
-          .map(p => p.trim())
-          .filter(Boolean),
-      ),
-    );
-    if (values.description) formData.append('description', values.description);
-    if (values.origine) formData.append('origine', values.origine);
-    if (values.premiereApparition)
-      formData.append('premiereApparition', values.premiereApparition);
-    if (values.image) formData.append('image', values.image);
+    const handleAddPower = () => {
+        if (powerInput.trim()) {
+            formik.setFieldValue('pouvoirs', [...formik.values.pouvoirs, powerInput.trim()]);
+            setPowerInput('');
+        }
+    };
 
-    await onSubmit(formData);
-    helpers.setSubmitting(false);
-  };
+    const handleDeletePower = (powerToDelete: string) => {
+        formik.setFieldValue('pouvoirs', formik.values.pouvoirs.filter((power) => power !== powerToDelete));
+    };
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setFieldValue: (field: string, value: unknown) => void,
-  ) => {
-    const file = e.target.files?.[0] ?? null;
-    setFieldValue('image', file);
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreview(url);
-    } else {
-      setPreview(initialHero?.image ?? null);
-    }
-  };
-
-  const handleTrim = (
-    e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    e.target.value = e.target.value.trim();
-  };
-
-  return (
-    <Formik
-      initialValues={initialValues}
-      validationSchema={heroSchema}
-      enableReinitialize
-      onSubmit={handleSubmit}
-    >
-      {({ isSubmitting, setFieldValue }) => (
-        <Form className="hero-form">
-          <div className="form-row">
-            <label>
-              Nom *
-              <Field name="nom" onBlur={handleTrim} />
-              <ErrorMessage component="div" className="error" name="nom" />
-            </label>
-            <label>
-              Alias *
-              <Field name="alias" onBlur={handleTrim} />
-              <ErrorMessage component="div" className="error" name="alias" />
-            </label>
-          </div>
-
-          <div className="form-row">
-            <label>
-              Univers *
-              <Field as="select" name="univers">
-                <option value="Marvel">Marvel</option>
-                <option value="DC">DC</option>
-                <option value="Autre">Autre</option>
-              </Field>
-              <ErrorMessage component="div" className="error" name="univers" />
-            </label>
-            <label>
-              Pouvoirs (séparés par des virgules) *
-              <Field
-                name="pouvoirs"
-                placeholder="Force, Vol, Télépathie…"
-                onBlur={handleTrim}
-              />
-              <ErrorMessage component="div" className="error" name="pouvoirs" />
-            </label>
-          </div>
-
-          <label>
-            Description
-            <Field
-              as="textarea"
-              name="description"
-              rows={4}
-              onBlur={handleTrim}
+    return (
+        <Box component="form" onSubmit={formik.handleSubmit} sx={{ mt: 1 }}>
+            <TextField
+                margin="normal"
+                fullWidth
+                id="nom"
+                label="Name"
+                name="nom"
+                value={formik.values.nom}
+                onChange={formik.handleChange}
+                error={formik.touched.nom && Boolean(formik.errors.nom)}
+                helperText={formik.touched.nom && formik.errors.nom}
             />
-            <ErrorMessage
-              component="div"
-              className="error"
-              name="description"
+            <TextField
+                margin="normal"
+                fullWidth
+                id="alias"
+                label="Alias"
+                name="alias"
+                value={formik.values.alias}
+                onChange={formik.handleChange}
+                error={formik.touched.alias && Boolean(formik.errors.alias)}
+                helperText={formik.touched.alias && formik.errors.alias}
             />
-          </label>
+            <TextField
+                margin="normal"
+                fullWidth
+                select
+                id="univers"
+                label="Univers"
+                name="univers"
+                value={formik.values.univers}
+                onChange={formik.handleChange}
+                error={formik.touched.univers && Boolean(formik.errors.univers)}
+                helperText={formik.touched.univers && formik.errors.univers}
+            >
+                <MenuItem value="Marvel">Marvel</MenuItem>
+                <MenuItem value="DC">DC</MenuItem>
+                <MenuItem value="Autre">Autre</MenuItem>
+            </TextField>
 
-          <div className="form-row">
-            <label>
-              Origine
-              <Field name="origine" onBlur={handleTrim} />
-              <ErrorMessage component="div" className="error" name="origine" />
-            </label>
-            <label>
-              Première apparition
-              <Field type="date" name="premiereApparition" />
-              <ErrorMessage
-                component="div"
-                className="error"
+            <Box sx={{ mt: 2, mb: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                        label="Add Power"
+                        value={powerInput}
+                        onChange={(e) => setPowerInput(e.target.value)}
+                        fullWidth
+                    />
+                    <Button variant="contained" onClick={handleAddPower}>Add</Button>
+                </Box>
+                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}>
+                    {formik.values.pouvoirs.map((power, index) => (
+                        <Chip
+                            key={index}
+                            label={power}
+                            onDelete={() => handleDeletePower(power)}
+                        />
+                    ))}
+                </Stack>
+                {formik.touched.pouvoirs && formik.errors.pouvoirs && (
+                    <Typography color="error" variant="caption">{formik.errors.pouvoirs as string}</Typography>
+                )}
+            </Box>
+
+            <TextField
+                margin="normal"
+                fullWidth
+                id="description"
+                label="Description"
+                name="description"
+                multiline
+                rows={4}
+                value={formik.values.description}
+                onChange={formik.handleChange}
+            />
+            <TextField
+                margin="normal"
+                fullWidth
+                id="origine"
+                label="Origine"
+                name="origine"
+                value={formik.values.origine}
+                onChange={formik.handleChange}
+            />
+            <TextField
+                margin="normal"
+                fullWidth
+                id="premiereApparition"
+                label="Premiere Apparition"
                 name="premiereApparition"
-              />
-            </label>
-          </div>
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={formik.values.premiereApparition}
+                onChange={formik.handleChange}
+            />
 
-          <div className="form-row">
-            <label>
-              Image
-              <input
-                type="file"
-                accept="image/*"
-                onChange={e => handleFileChange(e, setFieldValue)}
-              />
-            </label>
-            {preview && (
-              <div className="image-preview">
-                <img src={preview} alt="Prévisualisation" />
-              </div>
-            )}
-          </div>
+            <Box sx={{ mt: 2, mb: 2 }}>
+                <Button variant="contained" component="label">
+                    Upload Image
+                    <input type="file" hidden accept="image/*" onChange={handleImageChange} />
+                </Button>
+                {imagePreview && (
+                    <Box sx={{ mt: 2 }}>
+                        <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px' }} />
+                    </Box>
+                )}
+            </Box>
 
-          <button type="submit" className="btn primary" disabled={isSubmitting}>
-            {submitLabel ?? 'Enregistrer'}
-          </button>
-        </Form>
-      )}
-    </Formik>
-  );
+            <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{ mt: 3, mb: 2 }}
+            >
+                {submitLabel}
+            </Button>
+        </Box>
+    );
 };
 
 export default HeroForm;

@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import path from 'path';
 import { connectDB } from '../config/db.js';
 import Hero from '../models/Hero.js';
 import { logger } from './logger.js';

@@ -1,111 +1,128 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Container, Typography, Box, CircularProgress, Button, Chip, Paper } from '@mui/material';
 import { getHeroById, deleteHero } from '../api/heroApi';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Hero } from '../types/Hero';
-import {
-  formatHeroPowers,
-  resolveHeroImage,
-} from '../utils/heroUtils';
-import useAuth from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 
-const HeroDetails = () => {
-  const { id } = useParams<{ id: string }>();
-  const [hero, setHero] = useState<Hero | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+const HeroDetails: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const [hero, setHero] = useState<Hero | null>(null);
+    const [loading, setLoading] = useState(true);
 
-  const canEdit = isAuthenticated && ['admin', 'editor'].includes(user!.role);
-  const canDelete = isAuthenticated && user?.role === 'admin';
+    useEffect(() => {
+        const fetchHero = async () => {
+            if (id) {
+                try {
+                    const response = await getHeroById(id);
+                    setHero(response.data);
+                } catch (error) {
+                    console.error('Error fetching hero:', error);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+        fetchHero();
+    }, [id]);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!id) return;
-      setIsLoading(true);
-      try {
-        const data = await getHeroById(id);
-        setHero(data);
-      } catch (e: any) {
-        setError(
-          e?.response?.data?.message || 'Erreur lors du chargement du héros',
-        );
-      } finally {
-        setIsLoading(false);
-      }
+    const handleDelete = async () => {
+        if (id && window.confirm('Are you sure you want to delete this hero?')) {
+            try {
+                await deleteHero(id);
+                navigate('/');
+            } catch (error) {
+                console.error('Error deleting hero:', error);
+            }
+        }
     };
-    load();
-  }, [id]);
 
-  const handleDelete = async () => {
-    if (!hero || !canDelete) return;
-    if (!window.confirm(`Supprimer ${hero.nom} ?`)) return;
-    await deleteHero(hero._id);
-    navigate('/');
-  };
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
-  if (isLoading) return <div className="page-state">Chargement…</div>;
-  if (error) return <div className="error">{error}</div>;
-  if (!hero) return <div className="page-state">Héros introuvable.</div>;
+    if (!hero) {
+        return <Typography>Hero not found</Typography>;
+    }
 
-  const imageUrl = resolveHeroImage(hero.image);
+    let imageUrl = 'https://via.placeholder.com/600x400';
+    if (hero.image) {
+        if (hero.image.startsWith('http')) {
+            imageUrl = hero.image;
+        } else {
+            let cleanPath = hero.image.startsWith('/') ? hero.image.substring(1) : hero.image;
+            
+            if (cleanPath.match(/^(md|sm|xs|lg)\//)) {
+                cleanPath = `uploads/images/${cleanPath}`;
+            } else if (!cleanPath.startsWith('uploads/')) {
+                cleanPath = `uploads/${cleanPath}`;
+            }
 
-  return (
-    <main className="page">
-      <section className="hero-details card">
-        <div className="hero-details__image">
-          <img src={imageUrl} alt={hero.nom} />
-        </div>
-        <div className="hero-details__content">
-          <h1>{hero.nom}</h1>
-          <p className="hero-details__alias">{hero.alias}</p>
-          <p>
-            <strong>Univers:</strong> {hero.univers}
-          </p>
-          {hero.description && <p>{hero.description}</p>}
-          {hero.pouvoirs?.length > 0 && (
-            <p>
-              <strong>Pouvoirs:</strong> {formatHeroPowers(hero.pouvoirs)}
-            </p>
-          )}
-          {hero.origine && (
-            <p>
-              <strong>Origine:</strong> {hero.origine}
-            </p>
-          )}
-          {hero.premiereApparition && (
-            <p>
-              <strong>Première apparition:</strong>{' '}
-              {new Date(hero.premiereApparition).toLocaleDateString()}
-            </p>
-          )}
-          <div className="hero-details__actions">
-            <button type="button" className="btn ghost" onClick={() => navigate(-1)}>
-              Retour
-            </button>
-            {canEdit && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => navigate(`/edit-hero/${hero._id}`)}
-              >
-                Modifier
-              </button>
-            )}
-            {canDelete && (
-              <button
-                type="button"
-                className="btn danger"
-                onClick={handleDelete}
-              >
-                Supprimer
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-    </main>
-  );
+            imageUrl = `http://localhost:5001/${cleanPath.replace(/\\/g, '/')}`;
+        }
+    }
+
+    return (
+        <Container maxWidth="md" sx={{ mt: 4 }}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
+                    <Box sx={{ flex: 1 }}>
+                        <img src={imageUrl} alt={hero.nom} style={{ width: '100%', borderRadius: '8px' }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="h3" component="h1" gutterBottom>
+                            {hero.nom}
+                        </Typography>
+                        <Typography variant="h5" color="text.secondary" gutterBottom>
+                            {hero.alias}
+                        </Typography>
+                        <Chip label={hero.univers} color={hero.univers === 'Marvel' ? 'error' : hero.univers === 'DC' ? 'primary' : 'default'} sx={{ mb: 2 }} />
+                        
+                        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Powers</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {hero.pouvoirs.map((power, index) => (
+                                <Chip key={index} label={power} variant="outlined" />
+                            ))}
+                        </Box>
+
+                        <Typography variant="body1" paragraph>
+                            {hero.description}
+                        </Typography>
+
+                        {hero.origine && (
+                            <Typography variant="body2" color="text.secondary">
+                                <strong>Origin:</strong> {hero.origine}
+                            </Typography>
+                        )}
+                        {hero.premiereApparition && (
+                            <Typography variant="body2" color="text.secondary">
+                                <strong>First Appearance:</strong> {new Date(hero.premiereApparition).toLocaleDateString()}
+                            </Typography>
+                        )}
+
+                        <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+                            {(user?.role === 'admin' || user?.role === 'editor') && (
+                                <Button variant="contained" component={RouterLink} to={`/edit-hero/${hero._id}`}>
+                                    Edit
+                                </Button>
+                            )}
+                            {user?.role === 'admin' && (
+                                <Button variant="outlined" color="error" onClick={handleDelete}>
+                                    Delete
+                                </Button>
+                            )}
+                        </Box>
+                    </Box>
+                </Box>
+            </Paper>
+        </Container>
+    );
 };
 
 export default HeroDetails;

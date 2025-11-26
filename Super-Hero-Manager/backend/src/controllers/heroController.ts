@@ -4,53 +4,9 @@ import Hero from '../models/Hero.js';
 
 export const getAllHeroes = async (_req: Request, res: Response) => {
     try {
-        // Use lean for cheaper objects & easier inspection
-        const heroesRaw: any[] = await Hero.find().lean();
-
-        // Fallback: detect a malformed aggregated document that contains the entire dataset under `superheros`
-        if (
-            heroesRaw.length === 1 &&
-            !heroesRaw[0].nom &&
-            Array.isArray(heroesRaw[0].superheros) &&
-            heroesRaw[0].superheros.length > 0
-        ) {
-            logger.warn(
-                'Detected aggregated hero document with embedded `superheros` array; applying fallback expansion. Fix the database seeding to remove this document.'
-            );
-
-            const expanded = heroesRaw[0].superheros.map((h: any) => {
-                const univers = h?.biography?.publisher?.includes('Marvel')
-                    ? 'Marvel'
-                    : h?.biography?.publisher?.includes('DC')
-                    ? 'DC'
-                    : 'Autre';
-                return {
-                    // Generate a stable id; prefer slug, else original id number
-                    _id: h.slug || String(h.id),
-                    nom: h.name,
-                    alias: h?.biography?.fullName || h.name,
-                    univers,
-                        pouvoirs: [
-                        `Intelligence: ${h.powerstats?.intelligence}`,
-                        `Strength: ${h.powerstats?.strength}`,
-                        `Speed: ${h.powerstats?.speed}`,
-                        `Durability: ${h.powerstats?.durability}`,
-                        `Power: ${h.powerstats?.power}`,
-                        `Combat: ${h.powerstats?.combat}`,
-                    ],
-                    description: `${h?.biography?.fullName || h.name}. ${h?.work?.occupation || ''}`.trim(),
-                    image: h?.images?.md || h?.images?.sm || h?.images?.xs || h?.images?.lg,
-                    origine: h?.biography?.placeOfBirth,
-                    premiereApparition: h?.biography?.firstAppearance || undefined,
-                };
-            });
-
-            logger.info(`Expanded aggregated document into ${expanded.length} heroes (temporary fallback).`);
-            return res.status(200).json(expanded);
-        }
-
-        logger.info(`Retrieved ${heroesRaw.length} heroes`);
-        return res.status(200).json(heroesRaw);
+        const heroes = await Hero.find();
+        logger.info(`Retrieved ${heroes.length} heroes`);
+        return res.status(200).json(heroes);
     } catch (error) {
         logger.error('Error fetching all heroes:', error);
         return res.status(500).json({ message: 'Server error', error });

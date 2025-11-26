@@ -1,93 +1,54 @@
-import {
-  createContext,
-  useState,
-  ReactNode,
-  useCallback,
-  useEffect,
-} from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { checkAuth, login as loginApi, logout as logoutApi } from '../api/authApi';
 import { User } from '../types/User';
-import { checkAuth, logout as apiLogout } from '../api/authApi';
 
-export interface AuthContextType {
-  token: string | null;
-  user: User | null;
-  isAuthenticated: boolean;
-  isAuthLoading: boolean;
-  login: (token: string) => void;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+interface AuthContextType {
+    user: User | null;
+    loading: boolean;
+    login: (data: any) => Promise<void>;
+    logout: () => Promise<void>;
+    isAuthenticated: boolean;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined,
-);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem('token'),
-  );
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+    useEffect(() => {
+        const initAuth = async () => {
+            try {
+                const response = await checkAuth();
+                setUser(response.data);
+            } catch (error) {
+                console.log("Not authenticated");
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+        initAuth();
+    }, []);
 
-  const fetchUser = useCallback(async () => {
-    if (!token) {
-      setUser(null);
-      return;
-    }
+    const login = async (data: any) => {
+        const response = await loginApi(data);
+        if (response.data.token) {
+            localStorage.setItem('token', response.data.token);
+        }
+        const userResponse = await checkAuth();
+        setUser(userResponse.data);
+    };
 
-    setIsAuthLoading(true);
-    try {
-      const { user: me } = await checkAuth();
-      setUser(me);
-    } catch {
-      // token invalid => clean everything
-      localStorage.removeItem('token');
-      setToken(null);
-      setUser(null);
-    } finally {
-      setIsAuthLoading(false);
-    }
-  }, [token]);
+    const logout = async () => {
+        await logoutApi();
+        localStorage.removeItem('token');
+        setUser(null);
+    };
 
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
-
-  const login = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
-  };
-
-  const logout = async () => {
-    try {
-      await apiLogout();
-    } catch {
-      // backend logout failing is not a reason to keep a dead token
-    }
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  };
-
-  const isAuthenticated = !!token && !!user;
-
-  return (
-    <AuthContext.Provider
-      value={{
-        token,
-        user,
-        isAuthenticated,
-        isAuthLoading,
-        login,
-        logout,
-        refreshUser: fetchUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+    return (
+        <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };

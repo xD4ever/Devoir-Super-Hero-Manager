@@ -1,50 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import React from 'react';
+import { TextField, Box, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 
 interface SearchBarProps {
-  onSearch: (query: string) => void;
-  placeholder?: string;
-  delay?: number;
+    searchTerm: string;
+    onSearchChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    filterUnivers: string;
+    onFilterChange: (event: SelectChangeEvent) => void;
 }
 
-const SearchBar = ({
-  onSearch,
-  placeholder = 'Rechercher un héros…',
-  delay = 250,
-}: SearchBarProps) => {
-  const [query, setQuery] = useState('');
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    },
-    [],
-  );
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-
-    timeoutRef.current = window.setTimeout(() => {
-      onSearch(value);
-    }, delay);
-  };
-
-  return (
-    <input
-      className="search-input"
-      type="search"
-      placeholder={placeholder}
-      value={query}
-      onChange={handleChange}
-    />
-  );
+const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange, filterUnivers, onFilterChange }) => {
+    return (
+        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+            <TextField
+                label="Search Heroes"
+                variant="outlined"
+                fullWidth
+                value={searchTerm}
+                onChange={onSearchChange}
+            />
+            <FormControl sx={{ minWidth: 120 }}>
+                <InputLabel id="univers-select-label">Univers</InputLabel>
+                <Select
+                    labelId="univers-select-label"
+                    id="univers-select"
+                    value={filterUnivers}
+                    label="Univers"
+                    onChange={onFilterChange}
+                >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="Marvel">Marvel</MenuItem>
+                    <MenuItem value="DC">DC</MenuItem>
+                    <MenuItem value="Autre">Autre</MenuItem>
+                </Select>
+            </FormControl>
+        </Box>
+    );
 };
 
 export default SearchBar;

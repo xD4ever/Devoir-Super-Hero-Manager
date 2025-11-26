@@ -1,49 +1,52 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import useAuth from '../hooks/useAuth';
+import React from 'react';
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
-const Navbar = () => {
-  const { user, isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
+const Navbar: React.FC = () => {
+    const { user, logout, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
 
-  return (
-    <nav className="navbar">
-      <div className="navbar__left">
-        <Link to="/" className="navbar__brand">
-          SuperHeroManager
-        </Link>
-        <NavLink to="/" className="navbar__link">
-          Héros
-        </NavLink>
-        {user?.role === 'admin' && (
-          <NavLink to="/admin" className="navbar__link">
-            Admin
-          </NavLink>
-        )}
-      </div>
-      <div className="navbar__right">
-        {isAuthenticated ? (
-          <>
-            <span className="navbar__user">
-              connecté en tant que <strong>{user?.username}</strong> (
-              {user?.role})
-            </span>
-            <button type="button" className="btn ghost" onClick={handleLogout}>
-              Déconnexion
-            </button>
-          </>
-        ) : (
-          <Link to="/login" className="btn ghost">
-            Connexion
-          </Link>
-        )}
-      </div>
-    </nav>
-  );
+    return (
+        <AppBar position="static">
+            <Toolbar>
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                    Super Hero Manager
+                </Typography>
+                <Box>
+                    {isAuthenticated ? (
+                        <>
+                            <Button color="inherit" component={RouterLink} to="/">
+                                Dashboard
+                            </Button>
+                            {(user?.role === 'admin' || user?.role === 'editor') && (
+                                <Button color="inherit" component={RouterLink} to="/add-hero">
+                                    Add Hero
+                                </Button>
+                            )}
+                            {user?.role === 'admin' && (
+                                <Button color="inherit" component={RouterLink} to="/admin">
+                                    Admin
+                                </Button>
+                            )}
+                            <Button color="inherit" onClick={handleLogout}>
+                                Logout
+                            </Button>
+                        </>
+                    ) : (
+                        <Button color="inherit" component={RouterLink} to="/login">
+                            Login
+                        </Button>
+                    )}
+                </Box>
+            </Toolbar>
+        </AppBar>
+    );
 };
 
 export default Navbar;

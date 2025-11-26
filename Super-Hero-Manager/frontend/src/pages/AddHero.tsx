@@ -1,25 +1,32 @@
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Container, Typography, Box } from '@mui/material';
 import HeroForm from '../components/HeroForm';
 import { createHero } from '../api/heroApi';
+import { useNavigate } from 'react-router-dom';
+import { CreateHeroData } from '../types/Hero';
 
-const AddHero = () => {
-  const navigate = useNavigate();
+const AddHero: React.FC = () => {
+    const navigate = useNavigate();
 
-  const handleSubmit = async (formData: FormData) => {
-    await createHero(formData);
-    navigate('/');
-  };
+    const handleSubmit = async (values: CreateHeroData) => {
+        try {
+            await createHero(values);
+            navigate('/');
+        } catch (error) {
+            console.error('Error creating hero:', error);
+        }
+    };
 
-  return (
-    <main className="page">
-      <header className="page-header">
-        <h1>Ajouter un héros</h1>
-      </header>
-      <section className="card">
-        <HeroForm onSubmit={handleSubmit} submitLabel="Créer" />
-      </section>
-    </main>
-  );
+    return (
+        <Container maxWidth="sm">
+            <Box sx={{ mt: 4 }}>
+                <Typography variant="h4" component="h1" gutterBottom>
+                    Add New Hero
+                </Typography>
+                <HeroForm onSubmit={handleSubmit} submitLabel="Create Hero" />
+            </Box>
+        </Container>
+    );
 };
 
 export default AddHero;

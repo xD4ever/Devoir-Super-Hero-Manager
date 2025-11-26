@@ -1,98 +1,71 @@
-import { useEffect, useState } from 'react';
-import { fetchUsers, fetchAuditLog, AuditEntry } from '../api/adminApi';
+import React, { useEffect, useState } from 'react';
+import { Container, Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress } from '@mui/material';
+import { getAllUsers } from '../api/authApi';
 import { User } from '../types/User';
 
-const AdminPage = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [audit, setAudit] = useState<AuditEntry[]>([]);
-  const [info, setInfo] = useState<string | null>(null);
+const AdminPage: React.FC = () => {
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      const usersRes = await fetchUsers();
-      const auditRes = await fetchAuditLog();
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await getAllUsers();
+                setUsers(response.data);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUsers();
+    }, []);
 
-      setUsers(usersRes.data);
-      setAudit(auditRes.data);
-
-      if (usersRes.fallback || auditRes.fallback) {
-        setInfo(
-          "Les routes /api/admin ne sont pas encore actives. Données de démonstration affichées.",
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
         );
-      }
-    };
-    load();
-  }, []);
+    }
 
-  return (
-    <main className="page">
-      <header className="page-header">
-        <h1>Administration</h1>
-        <p>Gestion des utilisateurs et journal des actions.</p>
-      </header>
-
-      {info && <div className="info">{info}</div>}
-
-      <section className="card">
-        <h2>Utilisateurs</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Rôle</th>
-              <th>Créé le</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u._id}>
-                <td>{u.username}</td>
-                <td>{u.role}</td>
-                <td>
-                  {u.createdAt
-                    ? new Date(u.createdAt).toLocaleDateString()
-                    : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="card">
-        <h2>Journal des actions</h2>
-        {audit.length === 0 ? (
-          <p>Aucune action enregistrée.</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Acteur</th>
-                <th>Action</th>
-                <th>Cible</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.map(entry => (
-                <tr key={entry._id}>
-                  <td>
-                    {new Date(entry.createdAt).toLocaleString('fr-FR', {
-                      dateStyle: 'short',
-                      timeStyle: 'short',
-                    })}
-                  </td>
-                  <td>{entry.actor}</td>
-                  <td>{entry.action}</td>
-                  <td>{entry.target}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-    </main>
-  );
+    return (
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+                Admin Dashboard
+            </Typography>
+            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                Users List
+            </Typography>
+            <TableContainer component={Paper}>
+                <Table sx={{ minWidth: 650 }} aria-label="simple table">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Username</TableCell>
+                            <TableCell>Role</TableCell>
+                            <TableCell>Created At</TableCell>
+                            <TableCell>ID</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {users.map((user) => (
+                            <TableRow
+                                key={user._id}
+                                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                            >
+                                <TableCell component="th" scope="row">
+                                    {user.username}
+                                </TableCell>
+                                <TableCell>{user.role}</TableCell>
+                                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                                <TableCell>{user._id}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Container>
+    );
 };
 
 export default AdminPage;
